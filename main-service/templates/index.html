@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sausage Dog Servo Control</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Arial', sans-serif;
+            background-color: #fefae0;
+            color: #283618;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #606c38;
+        }
+        button {
+            background-color: #dda15e;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #bc6c25;
+        }
+        reset-button{
+            background-color: #dda15e;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+        reset-button:hover{
+            background-color: #bc6c25
+        }
+        .slider-container {
+            margin: 20px auto;
+            width: 50%;
+        }
+        .slider {
+            width: 100%;
+        }
+        .dog-image {
+            max-width: 50%;
+            height: auto;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+        .log-table {
+            margin: 30px auto;
+            width: 80%;
+            border-collapse: collapse;
+        }
+        .log-table th, .log-table td {
+            border: 1px solid #606c38;
+            padding: 10px;
+            text-align: center;
+        }
+        .log-table th {
+            background-color: #dda15e;
+            color: white;
+        }
+        .log-table tr:nth-child(even) {
+            background-color: #f1f1f1;
+        }
+        footer {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: #6a4c93;
+        }
+    </style>
+</head>
+<body>
+    <h1>🐾 🌭Sausage Dog Treat Dispenser 🌭🐾</h1>
+    <p>Click the button below to make a sausage dog happy today!</p>
+    <button id="control-button">Treat yourself!</button>
+    <button id="reset-button">Reset Logs</button>
+    <div class="slider-container">
+        <p>How many treats? Slide to decide:</p>
+        <input type="range" id="delay-slider" class="slider" min="0" max="2" step="1" value="1">
+        <p id="slider-label">Honest amount</p>
+    </div>
+
+    <div>
+        <img id="dog-image" class="dog-image" src="https://i.imgur.com/xo3DWBJ.jpg" alt="Content sausage dog">
+    </div>
+
+    <h2>Feeding Logs</h2>
+    <table class="log-table" id="log-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Action</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody id="log-body">
+            <!-- Feeding logs will be dynamically inserted here -->
+        </tbody>
+    </table>
+
+    <footer>
+        <p>Powered by PyFirmata and a love for sausage dogs!</p>
+    </footer>
+
+    <script>
+        const slider = document.getElementById('delay-slider');
+        const sliderLabel = document.getElementById('slider-label');
+        const dogImage = document.getElementById('dog-image');
+        const logBody = document.getElementById('log-body');
+
+        // Slider value to dog image mapping
+        const sliderStates = {
+            0: {
+                label: "Not much",
+                img: "https://i.pinimg.com/originals/c2/7f/7a/c27f7af29e44c6c7ecc7fab543b0dfcc.jpg" // Skinny sausage dog
+            },
+            1: {
+                label: "Honest amount",
+                img: "https://pulptastic.com/wp-content/uploads/2015/06/558270b366f93.jpg" // Content sausage dog
+            },
+            2: {
+                label: "A lot!",
+                img: "https://dachshundbreedcouncil.org.uk/wp-content/uploads/2024/01/Dachshund-Obesity-2.jpg" // Fat and happy sausage dog
+            }
+        };
+
+        // Update label and image when slider changes
+        slider.addEventListener('input', () => {
+            const state = sliderStates[slider.value];
+            sliderLabel.textContent = state.label;
+            dogImage.src = state.img;
+        });
+
+        // Send slider value with the servo control request
+        document.getElementById('control-button').addEventListener('click', () => {
+            const delayLevel = slider.value; // Get slider value (0, 1, or 2)
+            fetch('/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ delayLevel })
+            })
+                .then(response => {
+                    if (response.ok) {
+                        alert('Servo is moving! Woof!');
+                        fetchFeedingLogs(); // Refresh logs after action
+                    } else alert('Error triggering servo. Sad sausage dog :(');
+                });
+        });
+
+        //reset logs
+        document.getElementById('reset-button').addEventListener('click', () =>{
+                fetch('http://db-service:5001/reset', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                })
+                logBody.innerHTML = "";
+                 
+        })
+
+        // Fetch and populate feeding logs
+        function fetchFeedingLogs() {
+            fetch('/logs')
+                .then(response => response.json())
+                .then(logs => {
+                    logBody.innerHTML = ""; // Clear existing logs
+                    logs.forEach((log, index) => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${index + 1}</td>
+                            <td>${log.action}</td>
+                            <td>${log.timestamp}</td>
+                        `;
+                        logBody.appendChild(row);
+                    });
+                });
+        }
+
+        // Initial fetch of feeding logs
+        fetchFeedingLogs();
+    </script>
+</body>
+</html>

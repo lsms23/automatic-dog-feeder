@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  main-service:
+    build:
+      context: ./main-service
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db-service
+    networks:
+      - app-network
+    devices:
+      - "/dev/ttyACM0"  # Map the Arduino USB port
+
+  db-service:
+    build:
+      context: ./db-service
+    ports:
+      - "5001:5001"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

@@ -1,0 +1,3 @@
+Flask
+pyfirmata2
+requests
